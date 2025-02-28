@@ -14,6 +14,8 @@ import pytz
 from newsapi import NewsApiClient  # pip install newsapi-python
 import screen_brightness_control as sbc  # pip install screen-brightness-control
 import pickle  
+import socket  # For IP address functions
+import requests  # For web API calls
 
 class VoiceAssistant:
     def __init__(self, name="Neura"):
@@ -44,6 +46,14 @@ class VoiceAssistant:
 
         # Initialize commands dictionary - keep these simple for basic matching
         self.commands = {
+            "owner": self.about_developer,
+            "krish": self.about_developer,
+            "krrish ": self.about_developer,
+            "my name": self.about_developer,
+            "who made you": self.about_developer,
+            "who created you": self.about_developer,
+            "who is your developer": self.about_developer,
+            "who is your creator": self.about_developer,
             "hello": self.hello,
             "time": self.handle_time_request,
             "date": self.get_date,
@@ -52,6 +62,12 @@ class VoiceAssistant:
             "open": self.open_application,
             "who is": self.wiki_search,
             "what is": self.handle_what_is,
+            "what can you do": self.show_capabilities,
+            "help": self.show_capabilities,
+            "capabilities": self.show_capabilities,
+            "features": self.show_capabilities,
+            "commands": self.show_capabilities,
+            "menu": self.show_capabilities,
             "weather": self.get_weather,  # New weather command
             "forecast": self.get_weather,  # Alternative weather command
             "news": self.get_news,  # New news command
@@ -66,12 +82,48 @@ class VoiceAssistant:
             "list": self.list_reminders,  # Command to list reminders
             "exit": self.exit_assistant,
             "goodbye": self.exit_assistant,
-            "stop": self.exit_assistant
+            "stop": self.exit_assistant,
+
+            "check internet speed": self.check_speed,
+            "internet speed": self.check_speed,
+            "speed test": self.check_speed,
+            "what is my ip": self.get_ip_address,
+            "my ip": self.get_ip_address,
+            "ip address": self.get_ip_address,
+            "ping": self.ping_website,
+            "open website": self.open_website,
+            "go to": self.open_website,
+            "visit": self.open_website,
+            "show calendar": self.show_calendar,
+            "calendar": self.show_calendar,
+            "translate": self.translate_text,
+            "define": self.dictionary_lookup,
+            "meaning of": self.dictionary_lookup,
+            "tell me a joke": self.tell_joke,
+            "joke": self.tell_joke,
+            "motivate me": self.get_motivational_quote,
+            "inspire me": self.get_motivational_quote,
+            "quote": self.get_motivational_quote,
+            "search files": self.search_files,
+            "find files": self.search_files,
         }
         
         self.running = True
         self.active_mode = False
     
+    
+
+    def about_developer(self, command):
+        """Provide information about the developer"""
+        developer_info = (
+        "My developer is Krrish, a 2nd year student at CU pursuing AIML. "
+        "He created me as a voice assistant project to demonstrate his programming skills "
+        "and knowledge of artificial intelligence. Krrish is passionate about AI development "
+        "and aspires to work on advanced AI systems in the future. "
+        "He has invested significant time in designing my features to make me helpful and responsive."
+    )
+
+        self.speak(developer_info)
     def load_reminders(self):
         """Load reminders from file"""
         try:
@@ -82,7 +134,7 @@ class VoiceAssistant:
         except Exception as e:
             print(f"Error loading reminders: {e}")
             return []
-    
+
     def save_reminders(self):
         """Save reminders to file"""
         try:
@@ -269,7 +321,7 @@ class VoiceAssistant:
             "word": "winword.exe",
             "excel": "excel.exe",
             "powerpoint": "powerpnt.exe",
-            "chrome": "chrome.exe",
+            "chrome": "C:\Program Files\Google\Chrome\Application\chrome.exe",
             "firefox": "firefox.exe",
             "edge": "msedge.exe",
             "explorer": "explorer.exe",
@@ -710,6 +762,112 @@ class VoiceAssistant:
         else:
             self.speak("I couldn't understand the task. Please try again.")
     
+    def show_capabilities(self, command):
+    
+        capabilities = {
+        "Time and Date": ["Get current time", "Get time in different cities", "Get current date"],
+        "Information": ["Search the web", "Find information on Wikipedia", "Get weather updates", "Get latest news"],
+        "System Control": ["Open applications", "Adjust screen brightness", "Control system settings"],
+        "Personal Management": ["Set reminders", "Manage to-do lists", "Create tasks"],
+        "Other Features": ["Exit the assistant"]
+        }
+
+        self.speak("Here are the things I can help you with:")
+
+    # List all capabilities
+        for category, features in capabilities.items():
+            self.speak(f"{category}:")
+        for feature in features:
+            self.speak(f"- {feature}")
+        time.sleep(0.5)  # Small pause
+
+        self.speak("You can ask me to do any of these tasks. What would you like me to do?")
+    
+        category_response = self.listen()
+        selected_category = None
+
+        # Try to match by number first
+        for word in category_response.split():
+            if word.isdigit() and 1 <= int(word) <= len(capabilities):
+                selected_category = list(capabilities.keys())[int(word)-1]
+            break
+
+        # If no match by number, try matching by name
+        if not selected_category:
+            for category in capabilities.keys():
+             if category.lower() in category_response.lower():
+                selected_category = category
+                break
+
+    # If still no match, list all capabilities again
+        if not selected_category:
+            self.speak("I'm not sure which category you meant. Here are all my capabilities again:")
+            for category, features in capabilities.items():
+             self.speak(f"{category}:")
+            for feature in features:
+                    self.speak(f"- {feature}")
+                    time.sleep(0.3)
+            return
+
+        # Show features for the selected category
+        self.speak(f"Here's what I can do with {selected_category}:")
+        for i, feature in enumerate(capabilities[selected_category], 1):
+            self.speak(f"{i}. {feature}")
+
+        # Ask if user wants to try one of these features
+        self.speak("Would you like to try any of these features now? If so, which one?")
+        feature_response = self.listen()
+
+        # Map general feature descriptions to command keywords
+        feature_to_command = {
+            "current time": "time",
+            "time in different": "time in",
+            "current date": "date",
+            "search the web": "search",
+            "wikipedia": "what is",
+            "weather": "weather",
+            "news": "news",
+            "open application": "open",
+            "brightness": "brightness",
+            "reminder": "reminder",
+            "to-do": "todo",
+            "task": "task",
+            "exit": "exit"
+        }
+
+        # Try to identify which feature the user wants to try
+        selected_command = None
+
+        # Check for direct feature mention
+        for feature_key, command in feature_to_command.items():
+            if feature_key.lower() in feature_response.lower():
+                selected_command = command
+                break
+
+        # If no direct match, try to match by feature number within the category
+        if not selected_command:
+            for word in feature_response.split():
+                if word.isdigit() and 1 <= int(word) <= len(capabilities[selected_category]):
+                    feature_text = capabilities[selected_category][int(word)-1].lower()
+                    # Find the closest command match
+                    for feature_key, command in feature_to_command.items():
+                        if feature_key.lower() in feature_text:
+                            selected_command = command
+                            break
+                    if selected_command:
+                        break
+
+        # Execute the selected command if found
+        if selected_command:
+            self.speak(f"I'll help you with that. What specifically would you like to know about {selected_command}?")
+            specific_response = self.listen()
+
+            # Combine the command with the specific request
+            full_command = f"{selected_command} {specific_response}"
+            self.process_command(full_command)
+        else:
+            self.speak("I'm not sure which feature you want to try. Please ask me directly when you're ready.")
+
     def list_reminders(self, command):
         """List all reminders and to-dos"""
         if not self.reminders:
@@ -774,6 +932,278 @@ class VoiceAssistant:
             # Small delay to prevent excessive CPU usage
             time.sleep(0.1)
 
+    def check_speed(self, command):
+        """Check internet speed using speedtest-cli"""
+        self.speak("Running an internet speed test. This might take a few moments...")
+        try:
+            # Use subprocess to run the speedtest-cli tool
+            self.speak("Opening the speed test website for you.")
+            webbrowser.open("https://www.speedtest.net/")
+            return True
+        except Exception as e:
+            self.speak(f"I encountered an error while checking internet speed: {str(e)}")
+            return False
+        
+    def get_ip_address(self, command):
+        """Get the public and local IP address"""
+        try:
+            # Get public IP
+            self.speak("Retrieving your IP address information...")
+            response = requests.get("https://api.ipify.org?format=json")
+            public_ip = response.json()["ip"]
+
+            # Get local IP
+            hostname = socket.gethostname()
+            local_ip = socket.gethostbyname(hostname)
+
+            self.speak(f"Your public IP address is {public_ip}")
+            self.speak(f"Your local IP address is {local_ip}")
+            return True
+        except Exception as e:
+            self.speak(f"I encountered an error while retrieving your IP: {str(e)}")
+            return False
+        
+    def ping_website(self, command):
+        """Ping a website to check connectivity"""
+        # Extract website from command
+        website = None
+        if "ping" in command:
+            website = command.replace("ping", "").strip()
+
+        if not website:
+            self.speak("Which website would you like to ping?")
+            website = self.listen()
+
+        if website:
+            self.speak(f"Pinging {website}. Please wait...")
+            try:
+                # Use subprocess to run ping command
+                process = subprocess.Popen(
+                    ["ping", "-n", "4", website],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                output, error = process.communicate()
+
+                if error:
+                    self.speak(f"Error while pinging {website}: {error}")
+                else:
+                    # Extract average time from output
+                    if "Average" in output:
+                        avg_time = output.split("Average = ")[1].split("ms")[0]
+                        self.speak(f"Ping to {website} was successful with an average time of {avg_time} milliseconds.")
+                    else:
+                        self.speak(f"Ping to {website} completed. {website} is reachable.")
+                return True
+            except Exception as e:
+                self.speak(f"I couldn't ping {website}. Error: {str(e)}")
+                return False
+            
+    def open_website(self, command):
+        """Open a website in the default browser"""
+        # Extract URL from command
+        url = None
+        for phrase in ["open website", "go to", "visit"]:
+            if phrase in command:
+                url = command.replace(phrase, "").strip()
+                break
+            
+        if not url:
+            self.speak("Which website would you like to open?")
+            url = self.listen()
+
+        if url:
+            # Add http:// if not present
+            if not url.startswith("http"):
+                url = "https://" + url
+
+            # Add .com if no domain extension
+            if "." not in url.split("//")[1]:
+                url = url + ".com"
+
+            try:
+                self.speak(f"Opening {url}")
+                webbrowser.open(url)
+                return True
+            except Exception as e:
+                self.speak(f"I couldn't open {url}. Error: {str(e)}")
+                return False
+    
+    def show_calendar(self, command):
+        """Show calendar application or current month"""
+        self.speak("Opening calendar.")
+        try:
+            # For Windows, open the built-in Calendar app
+            subprocess.Popen("explorer.exe shell:AppsFolder\\microsoft.windowscommunicationsapps_8wekyb3d8bbwe!microsoft.windowslive.calendar")
+            return True
+        except Exception as e:
+            # Fallback to web calendar
+            self.speak("I couldn't open your calendar app. Opening web calendar instead.")
+            webbrowser.open("https://calendar.google.com")
+            return True
+        
+    def translate_text(self, command):
+        """Translate text from one language to another"""
+        # Extract text and languages
+        text_to_translate = None
+        target_language = "english"  # Default
+
+        if "translate" in command:
+            parts = command.replace("translate", "").strip().split(" to ")
+            if len(parts) >= 1:
+                text_to_translate = parts[0].strip()
+                if len(parts) >= 2:
+                    target_language = parts[1].strip()
+
+        if not text_to_translate:
+            self.speak("What would you like me to translate?")
+            text_to_translate = self.listen()
+
+            if text_to_translate:
+                self.speak("To which language? Say 'to' followed by the language name.")
+                lang_response = self.listen()
+                if "to" in lang_response:
+                    target_language = lang_response.split("to")[1].strip()
+
+        if text_to_translate:
+            self.speak(f"Translating '{text_to_translate}' to {target_language}")
+            # Open Google Translate with the text
+            encoded_text = requests.utils.quote(text_to_translate)
+            encoded_lang = requests.utils.quote(target_language)
+            url = f"https://translate.google.com/?sl=auto&tl={encoded_lang}&text={encoded_text}&op=translate"
+            webbrowser.open(url)
+            return True
+        else:
+            self.speak("I couldn't understand what to translate.")
+            return False
+        
+    def dictionary_lookup(self, command):
+        """Look up the definition of a word"""
+        # Extract word from command
+        word = None
+        for phrase in ["define", "meaning of"]:
+            if phrase in command:
+                word = command.replace(phrase, "").strip()
+                break
+            
+        if not word:
+            self.speak("Which word would you like me to define?")
+            word = self.listen()
+
+        if word:
+            self.speak(f"Looking up the definition of {word}")
+            try:
+                # Using free dictionary API
+                response = requests.get(f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}")
+                if response.status_code == 200:
+                    data = response.json()
+                    definition = data[0]["meanings"][0]["definitions"][0]["definition"]
+                    part_of_speech = data[0]["meanings"][0]["partOfSpeech"]
+                    self.speak(f"{word} is a {part_of_speech}.")
+                    self.speak(f"Definition: {definition}")
+
+                    # Check if there are examples
+                    if "example" in data[0]["meanings"][0]["definitions"][0]:
+                        example = data[0]["meanings"][0]["definitions"][0]["example"]
+                        self.speak(f"Example: {example}")
+                    return True
+                else:
+                    self.speak(f"I couldn't find a definition for {word}. Opening an online dictionary instead.")
+                    webbrowser.open(f"https://www.dictionary.com/browse/{word}")
+                    return True
+            except Exception as e:
+                self.speak(f"I encountered an error looking up that word: {str(e)}")
+                self.speak(f"Opening an online dictionary for {word} instead.")
+                webbrowser.open(f"https://www.dictionary.com/browse/{word}")
+                return True
+            
+    def tell_joke(self, command):
+        """Tell a random joke"""
+        jokes = [
+            # Funny Hindi Jokes
+            "Teacher: Bachho koi aisa vaakya batao jisme 'lekin' shabd do baar aaye!\nGolu: Main school to roj jata hoon lekin... lekin chhutti ke din nahi!",
+            "Doctor: Jab tumhe pareshani hoti hai to tum kya karte ho?\nPappu: Ji mandir chala jata hoon!\nDoctor: Bahut achha karte ho, dhyan lagate ho na wahan?\nPappu: Nahi ji… wahan se wife ko call karta hoon, network jo pura aata hai!",
+            "Santa: Agar meri shaadi ho gayi to main biwi ko Paris ghumane le jaunga.\nBanta: Aur agar shaadi nahi hui to?\nSanta: To Paris hi chala jaunga!",
+            "Patni (gusse me): Shaadi se pehle tum mujhe hotel, cinema, shopping karate the, aur ab?\nPati: Kabhi suna hai – 'Vote maangne se pehle neta haath jodta hai, aur baad me janta!'",
+            "Teacher: Bachho, samajhdari kise kehte hain?\nGolu: Master ji, shaadi se pehle pyaar karna aur shaadi ke baad pyaar ko samajhdari se nibhana!",
+            "Teacher: Ek taraf paisa, doosri taraf akal, tum kya chuno ge?\nGolu: Paisa!\nTeacher: Galat, main akal chunati!\nGolu: Theek hai madam, jo cheez jiske paas nahi hoti, wahi wo chunta hai!",
+            "Pappu bank gaya aur manager se bola: 'Mujhe loan chahiye!'\nManager: 'Kis liye?'\nPappu: 'Ji shaadi ke liye.'\nManager: 'Lekin shaadi ke liye to loan nahi milta!'\nPappu: 'To fir kya karein? Loan le kar ladki bhaga lein?'",
+            "Santa doctor se: 'Doctor sahab, jab main sota hoon to sapne me chuhe football khelte hain.'\nDoctor: 'Ye lo dawai raat ko sone se pehle kha lena.'\nSanta: 'Kal se kha loonga doctor sahab, aaj to final match hai!'",
+            "Patni: Tum mujhe koi gift nahi dete, na shopping karate ho!\nPati: Are pagli, Facebook aur Instagram pe dil aur likes bhejta hoon na!",
+            "Golu teacher se: 'Madam, aap shaadishuda ho?'\nTeacher: 'Nahi, par kyu pooch rahe ho?'\nGolu: 'Kyunki aapki shakal meri mummy se milti hai, aur mummy kehti hain ki papa se shaadi karke unki zindagi kharab ho gayi!'",
+
+            # Adult (18+) Jokes
+            "Pati apni patni se: Suno, aaj raat hum role-play karein?\nPatni: Haan haan, chalo doctor aur patient wala khelte hain!\nPati: Achha theek hai, to meri appointment kal ki hai!",
+            "Santa (girlfriend se): Tumhare papa mujhse nafrat kyu karte hain?\nGirlfriend: Kyunki tumne pehli mulaqat me hi unhe 'daddy' bol diya tha!",
+            "Patni: Raat ko kahan ja rahe ho?\nPati: Cigarette lene!\nPatni: Are, yeh to shaadi se pehle peete the na?\nPati: Haan, shaadi se pehle pyaar bhi to karte the!",
+            "Teacher: Ek aisa vaakya batao jisme 'sambhavana' shabd aaye!\nBaccha: Raat ko mummy papa ke kamre se awaaz aayi: ‘Sambhavana hai ki beta ho!’",
+            "Girlfriend: Tumhe mujhse kitna pyaar hai?\nBoyfriend: Utna hi jitna prepaid user ko raat me free data se hota hai!",
+            "Patni: Shaadi se pehle tum mere liye kuch bhi kar sakte the, ab?\nPati: Ab to insurance kara liya hai, thoda sabr kar lo!",
+            "Pati: Tum humesha ladayi kyu karti ho?\nPatni: Kyunki tum meri feelings ko samajhte nahi ho!\nPati: Achha, to WhatsApp status pe daal deti na!",
+            "Pati: Tum itni sundar kyu lag rahi ho aaj?\nPatni (sharmate hue): Sach me?\nPati: Haan, aur jaldi se batao paise kitne kharch kiye!",
+            "Santa bathroom me gaya aur chillaya: ‘Are koi hai?’\nPatni daudti aayi: ‘Kya hua?’\nSanta: ‘Kuch nahi, bas dekh raha tha, sach me koi meri parwah karta hai ya nahi!’",
+            "Boyfriend: Janu, tum itni sundar kaise dikh rahi ho?\nGirlfriend: Makeup aur filter se!\nBoyfriend: Are haan, jabse tum aayi ho, mera phone hang ho gaya!"
+        ]
+
+        joke = random.choice(jokes)
+        self.speak(joke)
+        return True
+    
+    def get_motivational_quote(self, command):
+        """Share a motivational or inspirational quote"""
+        quotes = [
+            "The only way to do great work is to love what you do. - Steve Jobs",
+            "Believe you can and you're halfway there. - Theodore Roosevelt",
+            "It does not matter how slowly you go as long as you do not stop. - Confucius",
+            "Everything you've ever wanted is on the other side of fear. - George Addair",
+            "Success is not final, failure is not fatal: It is the courage to continue that counts. - Winston Churchill",
+            "Hardships often prepare ordinary people for an extraordinary destiny. - C.S. Lewis",
+            "Your time is limited, don't waste it living someone else's life. - Steve Jobs",
+            "The future belongs to those who believe in the beauty of their dreams. - Eleanor Roosevelt",
+            "You are never too old to set another goal or to dream a new dream. - C.S. Lewis",
+            "The only limit to our realization of tomorrow will be our doubts of today. - Franklin D. Roosevelt"
+        ]
+
+        quote = random.choice(quotes)
+        self.speak(quote)
+        return True
+    
+    def search_files(self, command):
+        """Search for files on the computer"""
+        # Extract file type or name from command
+        file_query = None
+        for phrase in ["search files", "find files"]:
+            if phrase in command:
+                file_query = command.replace(phrase, "").strip()
+                break
+            
+        if not file_query:
+            self.speak("What type of files would you like me to search for?")
+            file_query = self.listen()
+
+        if file_query:
+            self.speak(f"Searching for {file_query} files on your computer")
+
+            # Determine search approach based on query
+            if file_query.startswith("."):
+                # This is a file extension search (e.g., ".pdf")
+                search_term = file_query
+            else:
+                # This is a keyword search
+                if not file_query.endswith("files"):
+                    search_term = file_query + " files"
+                else:
+                    search_term = file_query
+
+            # Open Windows Explorer with search
+            search_command = f'explorer.exe search-ms:query={search_term}&crumb=location:%3A'
+            subprocess.Popen(search_command, shell=True)
+            return True
+        else:
+            self.speak("I couldn't understand what files to search for.")
+            return False
+
 if __name__ == "__main__":
-    assistant = VoiceAssistant("Neura")  # Named Swift
+    assistant = VoiceAssistant("Neura") 
     assistant.run()
